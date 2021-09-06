@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<jardesc>
+    <jar path="D:/Dev/Desktop/healthchecker.jar"/>
+    <options buildIfNeeded="true" compress="true" descriptionLocation="/coturn-healthchecker/healthchecker.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="true" overwrite="true" saveDescription="true" storeRefactorings="true" useSourceFolders="false"/>
+    <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
+    <selectedProjects/>
+    <manifest generateManifest="true" mainClassHandleIdentifier="=coturn-healthchecker/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;com.ttech.tvoip.coturnhealthchecker{CoturnHealthcheckerApplication.java[CoturnHealthcheckerApplication" manifestLocation="" manifestVersion="1.0" reuseManifest="false" saveManifest="false" usesManifest="true">
+        <sealing sealJar="true">
+            <packagesToSeal/>
+            <packagesToUnSeal/>
+        </sealing>
+    </manifest>
+    <selectedElements exportClassFiles="false" exportJavaFiles="true" exportOutputFolder="true">
+        <javaElement handleIdentifier="=coturn-healthchecker/src\/main\/resources=/maven.pomderived=/true=/"/>
+        <folder path="/coturn-healthchecker/.mvn"/>
+        <file path="/coturn-healthchecker/pom.xml"/>
+        <folder path="/coturn-healthchecker/.settings"/>
+        <folder path="/coturn-healthchecker/.idea/libraries"/>
+        <folder path="/coturn-healthchecker/src"/>
+        <file path="/coturn-healthchecker/.classpath"/>
+        <file path="/coturn-healthchecker/healthchecker.jardesc"/>
+        <file path="/coturn-healthchecker/mvnw.cmd"/>
+        <javaElement handleIdentifier="=coturn-healthchecker/src\/test\/java=/optional=/true=/=/maven.pomderived=/true=/=/test=/true=/"/>
+        <folder path="/coturn-healthchecker/bin"/>
+        <file path="/coturn-healthchecker/HELP.md"/>
+        <file path="/coturn-healthchecker/coturn-healthchecker.iml"/>
+        <file path="/coturn-healthchecker/.gitignore"/>
+        <folder path="/coturn-healthchecker/target"/>
+        <javaElement handleIdentifier="=coturn-healthchecker/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/"/>
+        <file path="/coturn-healthchecker/mvnw"/>
+        <file path="/coturn-healthchecker/.project"/>
+    </selectedElements>
+</jardesc>
