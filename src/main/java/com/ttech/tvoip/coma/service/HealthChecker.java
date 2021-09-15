@@ -2,9 +2,14 @@ package com.ttech.tvoip.coma.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.net.telnet.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import com.ttech.tvoip.coma.alarm.AlarmManager;
+
+import jdk.internal.org.jline.utils.Log;
 
 import java.net.*;
 import java.util.*;
@@ -14,115 +19,139 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.io.*;
 
+
 @Service
 @Slf4j
 public class HealthChecker {
+	
+	@Autowired
+	AlarmManager alarmManager;
 
-	String server = "86.108.188.237";
 	ArrayList<String> serverlist = new ArrayList<String>();
 	
-	@Value("#{'${my.list.of.worker.proxies:D:\\Dev\\WORK\\coma\\config\\app.override.properties}'.split(',')}") 
-	private List<String> myList;
+	@Value("#{'${list.of.coturns.corpus:172.21.193.105|qwerty|86.108.188.238:443,86.108.188.237:42000,86.108.188.239:443,86.108.188.240:443,86.108.188.241:443,86.108.188.242:443;}'.split(';')}") 
+	private String[] corpusEntityList;
 	
-	@Scheduled(initialDelay=1000, fixedRateString="60000")   // TODO add check period
+	@Scheduled(initialDelay=1000, fixedRateString="60000")  
 	public void coturnAutoCheck()  {
 		
         Vector<String> v_alternate_list_from_config = new Vector<String>();
         Vector<String> v_alternate_server_list_from_cli = new Vector<String>();
         String line = null;
-       
-		log.debug("*****1) CLI'a gir ve Alternate Server'ların IPlerini ActualIP listesine yaz.***");
-
-        /*Get Alternative Server List from Cli*/        
-        v_alternate_server_list_from_cli = getAlternateServersFromCli();
-       
-		try
-		{
-			String serverentity;
-			String ip_from_config;
-			String port_from_config;
-			boolean exist = false;
-
-			log.debug("*****	2) Default IP listesini oku. IP:portlara tek tek ping at.***");
-			
-			for(String serversFromOverride:myList) 
-			{
-				serverentity = serversFromOverride;
-				String[] config_ip_ports = serverentity.split(":");
-				v_alternate_list_from_config.add(config_ip_ports[0] + ":" + config_ip_ports[1]);
-				try
-				{
-					InetAddress server = InetAddress.getByName(config_ip_ports[0]);
-				    SocketAddress sockaddr = new InetSocketAddress(server, Integer.parseInt(config_ip_ports[1]));
-				    Socket socket = new Socket();
-				    socket.connect(sockaddr, 1000);
-		            socket.close();
-					socket = null;
-					int add = 1;
-					log.debug("****************2-1-1) Ping başarılıysa IP'yi Actual IP'de ara." + serverentity );
-					
-		    		for (String a : v_alternate_server_list_from_cli)
-		            {
-						
-						if (a.equals(serverentity))
-						{
-							log.debug("*****	2-1-2) Varsa default IP listesindeki bir sonrakine geç.***" + serverentity);
-							exist = true;
-						}						
-		            }
-		    		
-		    		if(!exist)
-		    		{
-						log.info("*****	2-1-3) Yoksa aas ip:port***" + serverentity);
-				        alternateServerConfiguration(serverentity, add);		    			
-		    		}
-					
-				}
-			    catch (SocketTimeoutException ex) 
-			    {
-			    	int remove = -1;					
-			        log.debug("*****	2-2-1) Ping başarısızsa IP'yi Actual IP'de ara.***" + serverentity);
-
-					for (String a : v_alternate_server_list_from_cli)
-		            {
-						if (a.equals(serverentity))
-						{
-							exist = true;
-							break;						
-						}
-						else
-						{
-							exist = false;							
-							log.debug("***** 2-2-3) Yoksa default IP listesindeki bir sonrakine geç.***" + a);
-						}						
-		            }
-					
-		    		if(exist)
-		    		{
-						log.info("***** 2-2-2) Varsa das ip:port***" + serverentity);
-				        alternateServerConfiguration(serverentity, remove);		    			
-		    		}
-			        
-			    }
-		        catch( Exception e )
-		        {
-		            log.error("Unknown socket exception.");
-		        }
-			}
-		}
-        catch( Exception e )
+        
+        
+        for(String a:corpusEntityList)
         {
-            log.error("Config file problem.");
+        	log.info("Corpuslar: " + a);
         }
+        
+        for(String corpusEntity : corpusEntityList)
+        {
+        	String[] corpusEntityDatas = corpusEntity.split("\\|");
+       
+        	
+        	String proxyCoturn = corpusEntityDatas[0];
+        	String proxyCliPassword = corpusEntityDatas[1];
+        	String workersList = corpusEntityDatas[2];
+
+            log.debug("Cli: " + proxyCoturn + " Password: " + proxyCliPassword + " WorkersList: " + workersList);
+
+        	
+        	String[] workersListEntity = workersList.split(",");
+
+            for(String a:workersListEntity)
+            {
+            	log.debug("workersListEntity: " + a);
+            }
+        	
+        	/*Get Alternative Server List from Cli*/        
+        	v_alternate_server_list_from_cli = getAlternateServersFromCli(proxyCoturn, proxyCliPassword);
+       
+        	try
+        	{
+        		String serverentity;
+        		String ip_from_config;
+        		String port_from_config;
+        		boolean exist = false;
+			
+        		for(String serversFromOverride:workersListEntity) 
+        		{
+        			serverentity = serversFromOverride;
+        			String[] config_ip_ports = serverentity.split(":");
+        			v_alternate_list_from_config.add(config_ip_ports[0] + ":" + config_ip_ports[1]);
+        			try
+        			{
+        				InetAddress server = InetAddress.getByName(config_ip_ports[0]);
+        				SocketAddress sockaddr = new InetSocketAddress(server, Integer.parseInt(config_ip_ports[1]));
+        				Socket socket = new Socket();
+        				socket.connect(sockaddr, 1000);
+        				socket.close();
+        				socket = null;
+					
+        				for (String a : v_alternate_server_list_from_cli)
+        				{
+						
+        					if (a.equals(serverentity))
+        					{
+        						exist = true;
+        					}						
+        				}
+		    		
+        				if(!exist)
+        				{
+        					alternateServerConfiguration(serverentity, true, proxyCoturn, proxyCliPassword);		    			
+        				}
+        				alarmManager.getComaWorkersAlarm().clear();
+					
+        			}
+        			catch (SocketTimeoutException ex) 
+        			{
+        				alarmManager.getComaWorkersAlarm().raise();
+        				int remove = -1;					
+
+        				for (String a : v_alternate_server_list_from_cli)
+        				{
+        					if (a.equals(serverentity))
+        					{
+        						exist = true;
+        						break;						
+        					}
+        					else
+        					{
+        						exist = false;							
+        					}						
+        				}
+					
+        				if(exist)
+        				{
+        					alternateServerConfiguration(serverentity, false, proxyCoturn, proxyCliPassword);		    			
+        				}
+			        
+        			}
+        			catch( Exception e )
+        			{
+        				alarmManager.getComaWorkersAlarm().raise();
+        				log.error("Unknown workers socket exception: " + serversFromOverride,e);
+        			}
+        		}
+        	}
+        	catch( Exception e )
+        	{
+				alarmManager.getComaWorkersAlarm().raise();
+        		log.error("Config file problem.",e);
+        	}
+		
+        }
+
 	}
 
-	public void alternateServerConfiguration(String serverentity, int operation) throws InterruptedException, IOException {
+	public void alternateServerConfiguration(String serverentity, boolean operation, String proxyCoturn, String proxyCliPassword) throws InterruptedException, IOException {
 		TelnetClient telnet = new TelnetClient();
 		for (int retry_count = 0; retry_count < 3; retry_count++) 
 		{
 			  try 
 			  {
-				  telnet.connect("172.21.193.105",5767);
+				  telnet.connect(proxyCoturn,5767);
 				  break;
 			  } 
 			  catch (IOException e) 
@@ -138,14 +167,14 @@ public class HealthChecker {
 			  }
 		}
 		
-		String pwd = "qwerty";
+		String pwd = proxyCliPassword;
 		telnet.getOutputStream().write(pwd.getBytes());
 		telnet.getOutputStream().flush();
 		
-		if(operation == 1)
+		if(operation == true)
 		{
 			String command1 = "aas " + serverentity + "\r\n";
-			log.info("AAS COMMAND: " + command1);
+			log.debug("AAS COMMAND: " + command1);
 		
 			telnet.getOutputStream().write(command1.getBytes());
 			telnet.getOutputStream().flush();
@@ -159,10 +188,10 @@ public class HealthChecker {
 	        is.close();
 		}
 		
-		else if(operation == -1)
+		else if(operation == false)
 		{
 			String command1 = "das " + serverentity + "\r\n";
-			log.info("DAS COMMAND: " + command1);
+			log.debug("DAS COMMAND: " + command1);
 			
             telnet.getOutputStream().write(command1.getBytes());
             telnet.getOutputStream().flush();
@@ -179,16 +208,16 @@ public class HealthChecker {
 		
 		else
 		{
-			log.error("Neither add nor remove!");			
+			log.error("Neither add nor remove!" + operation);			
 		}
 		
 		telnet.disconnect();
 	}
 
-	public Vector<String> getAlternateServersFromCli() {
+	public Vector<String> getAlternateServersFromCli(String proxyCoturn, String cliPassword) {
 		String line;
         Vector<String> v_alternate_server_list_from_cli = new Vector<String>();
-
+    	
         try
         {
     		TelnetClient telnet = new TelnetClient();
@@ -196,7 +225,7 @@ public class HealthChecker {
 	        {
 	        	  try 
 	        	  {
-	        		  telnet.connect("172.21.193.105",5767);
+	        		  telnet.connect(proxyCoturn,5767);
 	        		  break;
 	        	  } 
 	        	  catch (IOException e) 
@@ -212,7 +241,7 @@ public class HealthChecker {
 	        	  }
 	        }
 	                    
-	        String pwd = "qwerty";
+	        String pwd = cliPassword;
             telnet.getOutputStream().write(pwd.getBytes());
             telnet.getOutputStream().flush();
 			    		 
@@ -240,11 +269,13 @@ public class HealthChecker {
                 } 
             }
             			
-    		telnet.disconnect();    	   
+    		telnet.disconnect();
+			alarmManager.getComaProxiesAlarm().clear();
         }
         catch( Exception e )
         {
-        	log.error("Telnet exception while getting the information from the proxy server.");
+			alarmManager.getComaProxiesAlarm().raise();
+        	log.error("Telnet exception while getting the information from the proxy server.",e);
         }
         
 		return v_alternate_server_list_from_cli;
