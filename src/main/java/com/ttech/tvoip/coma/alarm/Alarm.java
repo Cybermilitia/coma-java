@@ -2,11 +2,14 @@ package com.ttech.tvoip.coma.alarm;
 
 import org.slf4j.Logger;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * @author TTKVATANSEVER
  * 
  */
+@Slf4j
 public class Alarm {
 	
 	public static final int				ALARM_CLEARED	= 0;
@@ -19,7 +22,6 @@ public class Alarm {
 	private int							clearId;
 	private int							threshold;
 	private long						timePeriod;
-	private Logger						logger;
 	
 	private int							counter;
 	private int							status;
@@ -34,7 +36,6 @@ public class Alarm {
 		this.status = ALARM_NONE;
 		this.lastSentTime = 0;
 		this.timePeriod = 0;
-		this.logger = null;
 		this.severity = "critial";		
 	}
 	
@@ -50,7 +51,7 @@ public class Alarm {
 	public synchronized void raise(String message) {
 		counter++;
 		if (counter >= threshold && (status != ALARM_RAISED || isReraiseRequired())) {
-			logger.info(severity + "|" + (message!=null?message:"") + "|" + name);
+			log.info(severity + "|" + (message!=null?message:"") + "|" + name);
 			status = ALARM_RAISED;
 			lastSentTime = System.currentTimeMillis();
 		}
@@ -62,7 +63,7 @@ public class Alarm {
 	
 	public synchronized void clear(String message) {
 		if (status != ALARM_CLEARED) {
-			logger.info("normal|" + (message!=null?message:"") + "|" + name);
+			log.info("normal|" + (message!=null?message:"") + "|" + name);
 			status = ALARM_CLEARED;
 			counter = 0;
 			lastSentTime = 0;
@@ -121,13 +122,6 @@ public class Alarm {
 		return lastSentTime;
 	}
 	
-	public Logger getLogger() {
-		return logger;
-	}
-	
-	public void setLogger(Logger logger) {
-		this.logger = logger;
-	}
 	
 	public String getName() {
 		return name;

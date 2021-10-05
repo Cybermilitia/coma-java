@@ -43,13 +43,11 @@ public class AlarmManager {
 		comaProxiesAlarm.setSeverity(ALARM_SEVERITY_CRITICAL);
 		comaProxiesAlarm.setThreshold(comaProxiesAlarmThreshold);
 		comaProxiesAlarm.setTimePeriod(comaProxiesAlarmPeriod);
-		comaProxiesAlarm.setLogger(alarmLogger);	
 
 		comaWorkersAlarm = new Alarm("COMA_WORKERS_ALARM");
 		comaWorkersAlarm.setSeverity(ALARM_SEVERITY_CRITICAL);
 		comaWorkersAlarm.setThreshold(comaWorkersAlarmThreshold);
 		comaWorkersAlarm.setTimePeriod(comaWorkersAlarmPeriod);
-		comaWorkersAlarm.setLogger(alarmLogger);	
 		
 		
 		

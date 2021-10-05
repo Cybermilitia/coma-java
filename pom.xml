@@ -11,7 +11,7 @@
 	<packaging>jar</packaging>
 	<groupId>com.ttech.tvoip</groupId>
 	<artifactId>coma</artifactId>
-	<version>0.0.1</version>
+	<version>0.0.6</version>
 	<name>coturn-healthchecker</name>
 	<description>Coturn healthchecker</description>
 	<properties>
@@ -32,7 +32,10 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+		</dependency>
 		<dependency>
     		<groupId>commons-net</groupId>
     		<artifactId>commons-net</artifactId>
