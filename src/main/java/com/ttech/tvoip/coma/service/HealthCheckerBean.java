@@ -178,12 +178,11 @@ public class HealthCheckerBean {
 		
 		log.info("Command running for proxy:{} operation:{} worker:{}", proxyCoturn, operation, worker);
 
+		TelnetClient telnet = new TelnetClient();
+		telnet.setConnectTimeout(1000);
 		try {
-		
-			TelnetClient telnet = new TelnetClient();
-    		telnet.setConnectTimeout(1000);
+
 			telnet.connect(proxyCoturn,telnetPort);
-		
 			String pwd = proxyCliSecret;
 			telnet.getOutputStream().write(pwd.getBytes());
 			telnet.getOutputStream().flush();
@@ -219,12 +218,15 @@ public class HealthCheckerBean {
 		        
 			} 
 			
-			 telnet.disconnect();
         } catch( Exception e ) {
-			 alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
-        	 log.error("Telnet exception while getting the information from the proxy server.", e);
-        	 throw e;
+        	alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
+        	log.error("Telnet exception while getting the information from the proxy server.", e);
+       		telnet.disconnect();			
+       		throw e;
         }
+		finally {
+    		telnet.disconnect();	
+		}
 	}
 
 	@Retryable(value = { IOException.class }, maxAttempts = 2)
@@ -233,13 +235,11 @@ public class HealthCheckerBean {
         Vector<String> alternateServerListFromCli = new Vector<String>();
     	
         log.info("Server list command running for proxy:{} ", proxyCoturn);
-        try
+		TelnetClient telnet = new TelnetClient();	
+		telnet.setConnectTimeout(1000);
+		try
         {
-    		TelnetClient telnet = new TelnetClient();	
-    		telnet.setConnectTimeout(1000);
-	        telnet.connect(proxyCoturn,telnetPort);
-	        	
-	                    
+	        telnet.connect(proxyCoturn,telnetPort);            
 	        String pwd = cliPassword;
             telnet.getOutputStream().write(pwd.getBytes());
             telnet.getOutputStream().flush();
@@ -269,14 +269,17 @@ public class HealthCheckerBean {
                 } 
             }
             			
-    		telnet.disconnect();
 			alarmGroup.getAlarm(proxyCoturn).clear();
 
         } catch( Exception e ) {
 			alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
         	log.error("Telnet exception while getting the information from the proxy server.", e);
+       		telnet.disconnect();			
         	throw e;
         }
+		finally {
+    		telnet.disconnect();
+		}
         
 		return alternateServerListFromCli;
 	}
