@@ -141,6 +141,7 @@ public class HealthCheckerBean {
         				log.error("DAS due to timeout " + alternateServerListFromCli.contains(worker)+ " " + worker);
     					try {
 							alternateServerConfiguration(worker, false, proxyCoturn, proxyCliSecret);
+							alternateServerListFromCli.remove(worker);
 						} catch (IOException e) {
 							log.error("Command not running for proxy:{} worker:{} During DAS", proxyCoturn, worker, e);
 						}		    			
@@ -219,7 +220,6 @@ public class HealthCheckerBean {
 			} 
 			
 			 telnet.disconnect();
-        
         } catch( Exception e ) {
 			 alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
         	 log.error("Telnet exception while getting the information from the proxy server.", e);
