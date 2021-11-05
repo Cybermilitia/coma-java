@@ -20,7 +20,7 @@ public class HealthCheckerManager {
 	@Autowired
 	private ApplicationContext appContext;
 	
-	@Value("#{'${list.of.coturns.corpus:172.21.193.105|qwerty|86.108.188.238:443,86.108.188.237:42000,86.108.188.239:443,86.108.188.240:443,86.108.188.241:443,86.108.188.242:443;}'.split(';')}") 
+	@Value("#{'${list.of.coturns.corpus:172.21.193.111|qwerty|86.108.188.135:3478,86.108.188.134:3478,86.108.188.237:3478,86.108.188.95:3478/spares/86.108.188.91:3478;}'.split(';')}") 
 	private String[] corpusEntityList;
 	
 	final Map<String, HealthCheckerBean> healthCheckerServiceMap = new HashMap<>();
@@ -37,7 +37,7 @@ public class HealthCheckerManager {
         	log.info("Proxy coturn added serviceMap: " + proxyCoturn);
         			
         }
-		
+
 	}
 	
 	

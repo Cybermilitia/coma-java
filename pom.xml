@@ -11,7 +11,7 @@
 	<packaging>jar</packaging>
 	<groupId>com.ttech.tvoip</groupId>
 	<artifactId>coma</artifactId>
-	<version>0.0.6</version>
+	<version>0.0.8</version>
 	<name>coturn-healthchecker</name>
 	<description>Coturn healthchecker</description>
 	<properties>
@@ -40,6 +40,11 @@
     		<groupId>commons-net</groupId>
     		<artifactId>commons-net</artifactId>
     		<version>3.8.0</version>
+		</dependency>
+		<dependency>
+    		<groupId>de.javawi.jstun</groupId>
+    		<artifactId>jstun</artifactId>
+    		<version>0.7.4</version>
 		</dependency>
 		
 	</dependencies>

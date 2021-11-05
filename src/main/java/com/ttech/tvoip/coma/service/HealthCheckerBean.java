@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.*;
+import java.util.Arrays;
 
 import javax.annotation.PostConstruct;
 
@@ -29,7 +31,6 @@ import com.ttech.tvoip.coma.alarm.AlarmGroup;
 
 import lombok.extern.slf4j.Slf4j;
 
-
 @Service
 @Slf4j
 @Scope("prototype")
@@ -42,29 +43,42 @@ public class HealthCheckerBean {
 	
 	private String proxyCliSecret;
 	
-	private String[] workersList;
+	private String[] totalWorkersList;
 
-    Vector<String> alternateServerListFromCli = new Vector<String>();
+	private String[] spareWorkersList;
+
+	private String[] mainWorkersList;
+
+	private String[] workersList;
+	
+	Boolean sparesNeeded = false;
+
+	Vector<String> alternateServerListFromCli = new Vector<String>();
 
 	ArrayList<String> serverlist = new ArrayList<String>();
 	
-	@Value("${telnet.port:5767}")
+	@Value("${telnet.port:8000}")
 	private int telnetPort;
-	
+
 	public HealthCheckerBean(String corpusEntity) {
 		
 		String[] corpusEntityDatas = corpusEntity.split("\\|");
 		
 		this.proxyCoturn = corpusEntityDatas[0];
 		this.proxyCliSecret = corpusEntityDatas[1];
-		this.workersList = corpusEntityDatas[2].split(",");
+		this.totalWorkersList = corpusEntityDatas[2].split("/spares/");
+		this.mainWorkersList = totalWorkersList[0].split(",");
+		this.spareWorkersList = totalWorkersList[1].split(",");
+		this.workersList = Stream.concat(Arrays.stream(this.mainWorkersList), Arrays.stream(this.spareWorkersList)).toArray(String[]::new);
 		
-		log.info("Cli: {} Secret:{} Workers:{}", proxyCoturn, proxyCliSecret, workersList);
+		//this.workersList = corpusEntityDatas[2].split(",");
+
+		log.info("Cli: {} Secret:{} Workers:{} Spare Workers:{}", proxyCoturn, proxyCliSecret, mainWorkersList, spareWorkersList );
 	}
 	
 	@PostConstruct
 	public void init() {
-		log.info("init method invoked for proxy:{} and workers:{}", proxyCoturn, workersList);
+		log.info("init method invoked for proxy:{} and whole workers:{}", proxyCoturn, workersList);
 		alarmGroup.addAlarm(proxyCoturn);
 		for (String worker : workersList) {
 			alarmGroup.addAlarm(worker);
@@ -84,7 +98,7 @@ public class HealthCheckerBean {
 	public void Syncronization()  {
     	/*Get Alternative Server List from Cli*/        
     	try {
-			log.error("Syncronization");
+			log.info("Syncronization");
 			alternateServerListFromCli = getAlternateServersFromCli(proxyCoturn, proxyCliSecret);
 		} catch (IOException e1) {
 			log.error("List command not running for proxy:{}", proxyCoturn, e1);
@@ -96,82 +110,145 @@ public class HealthCheckerBean {
 	@Scheduled(initialDelay=1000, fixedRateString="10000")  
 	public void coturnAutoCheck()  {
 		
-        Vector<String> alternateServerListFromConfig = new Vector<String>();
+        Vector<Worker> alternateServerListFromConfig = new Vector<Worker>();
        
-		log.error("Cycle Starts");
+		log.info("Cycle Starts");
 		
 		for(String s:alternateServerListFromCli)
-			log.error("alternateServerListFromCli " + s);
+			log.info("alternateServerListFromCli " + s);
 
+		/*At first main workers*/
 		
-    		for(String worker : workersList) {
+    		for(String mainWorkerCandidate : mainWorkersList) {
     			
-    			String[] configIpPort = worker.split(":");
-    			alternateServerListFromConfig.add(worker);
+    			String[] configIpPort = mainWorkerCandidate.split(":");
     			
-    			try {
-    				
-    				InetAddress server = InetAddress.getByName(configIpPort[0]);
-    				SocketAddress sockaddr = new InetSocketAddress(server, Integer.parseInt(configIpPort[1]));
-    				Socket socket = new Socket();
-    				socket.connect(sockaddr, 1000);
-    				socket.close();
-    				socket = null;
-    				
-				
-					if(!alternateServerListFromCli.contains(worker)) {
-	    				log.error("AAS " + alternateServerListFromCli.contains(worker) + " " + worker);
-    					try {
-        					alternateServerConfiguration(worker, true, proxyCoturn, proxyCliSecret);
-        				    alternateServerListFromCli.add(worker);
-
-						} catch (IOException e) {
-							log.error("Command not running for proxy:{} worker:{} during AAS", proxyCoturn, worker, e);
-						}	
-    				}
-    				
-					alarmGroup.getAlarm(worker).clear();
-				
-    			} catch (SocketTimeoutException ex) {
-    				
-    				alarmGroup.getAlarm(worker).raise("TIMEOUT");
-				
-    				if(alternateServerListFromCli.contains(worker))
-    				{
-        				log.error("DAS due to timeout " + alternateServerListFromCli.contains(worker)+ " " + worker);
-    					try {
-							alternateServerConfiguration(worker, false, proxyCoturn, proxyCliSecret);
-							alternateServerListFromCli.remove(worker);
-						} catch (IOException e) {
-							log.error("Command not running for proxy:{} worker:{} During DAS", proxyCoturn, worker, e);
-						}		    			
-    				}
-		        
-    			} catch( ConnectException  e ) {
-    				
-    				alarmGroup.getAlarm(worker).raise("Connection Refused");
-    				log.error("Connection refused: " + worker,e);
-    				
-    				if(alternateServerListFromCli.contains(worker))
-    				{
-        				log.error("DAS due to connection refused" + alternateServerListFromCli.contains(worker)+ " " + worker);
-    					try {
-							alternateServerConfiguration(worker, false, proxyCoturn, proxyCliSecret);
-        				    alternateServerListFromCli.remove(worker);
-						} catch (IOException cliE) {
-							log.error("Command not running for proxy:{} worker:{} ", proxyCoturn, worker, cliE);
-						}		    			
-    				}
-    				
-    			} catch( Exception e ) {
-    				
-				alarmGroup.getAlarm(worker).raise("UNKNOWN");
-				log.error("Unknown workers socket exception: " + worker,e);
-				
+    			try{
+    				Worker workerObject = new Worker(mainWorkerCandidate, false);
+        			alternateServerListFromConfig.add(workerObject);
+        		}
+    			catch(Exception e ){
+					log.error("Main worker problem: " + mainWorkerCandidate);   					
     			}
-   		}
+    			
+    		}
+    		
+    		/*Then blackleg - spare workers*/
+    		
+    		for(String spareWorkerCandidate : spareWorkersList) {
+    			
+    			String[] configIpPort = spareWorkerCandidate.split(":");
+    			
+    			try{
+    				Worker workerObject = new Worker(spareWorkerCandidate, true);
+        			alternateServerListFromConfig.add(workerObject);
+        		}
+    			catch(Exception e ){
+					log.error("Spare worker problem: " + spareWorkerCandidate);   					
+    			}
+    			
+    		}
+    		
+    		/*
+				State(Up/DOWN)	cliContains	SpareNeeded	 Redundancy(Main 0/Spare 1)   Process
+			0					0				 0					0					0
+			0					0				 0					1					0
+			0					0				 1					0					0
+			0					0				 1					1					0
+			
+			0					1				 0					0					D (if size 0 => spareNeeded)
+			0					1				 0					1					D
+			0					1				 1					0					D (no matter spareNeeded)
+			0					1				 1					1					D
+				
+			1					0				 0					0					A (if not redundant => !spareNeeded)
+			1					0				 0					1					0 (no need spare - Do not add it)
+			1					0				 1					0					A (if not redundant => !spareNeeded)
+			1					0				 1					1					A
+				
+			1					1				 0					0					0
+			1					1				 0					1					D (no need spare - Delete it)
+			1					1				 1					0					0
+			1					1				 1					1					0
+    		 */
+    		
+    		for(Worker workerObject :alternateServerListFromConfig)
+    		{
+				
+    			String workerCandidate = workerObject.getIp() + ":" + workerObject.getPort();
+    			
+    			Boolean state = workerObject.getState();
+    			
+    			Boolean contain = alternateServerListFromCli.contains(workerCandidate);
+    			
+    			Boolean redundant = workerObject.getRedundancy();
+    			
+    			log.debug("workerCandidate: " + workerCandidate + " state: " + state + " contain: " + contain 
+    					+ " sparesNeeded: " + sparesNeeded + " redundant: " + redundant);
+    			
 
-	}
+    			if((state == false) && (contain == false)) 
+    				continue;
+    			
+    			else if((state == false) && (contain == true)) 
+    			{
+        			log.info("DAS " + workerCandidate);
+
+        			try {
+						alternateServerConfiguration(workerCandidate, false, proxyCoturn, proxyCliSecret);
+						alternateServerListFromCli.remove(workerCandidate);
+						if((alternateServerListFromCli.size() == 0) && (redundant == false))
+						{
+							sparesNeeded = true;
+							log.debug("SPARES ACTIVATED! " + sparesNeeded);
+						}
+		
+					} catch (IOException e) {
+						log.error("Command not running for proxy:{} mainWorkerCandidate:{} During DAS", proxyCoturn, workerCandidate, e);
+					}		    			
+
+    			}
+        			
+    			else if((state == true) && (contain == false)) 
+    			{
+    				if((sparesNeeded == true) || ((sparesNeeded == false) && (redundant == false)))
+    				{
+    	    			log.info("AAS " + workerCandidate);
+    	    			
+        				try {
+            				alternateServerConfiguration(workerCandidate, true, proxyCoturn, proxyCliSecret);
+            			    alternateServerListFromCli.add(workerCandidate); 
+    					} catch (IOException e) {
+    						log.error("Command not running for proxy:{} worker:{} during AAS", proxyCoturn, workerCandidate, e);
+    					}
+						if(redundant == false)
+						{
+							sparesNeeded = false;
+							log.debug("SPARES DEACTIVATED! " + sparesNeeded);
+						}
+    				}
+    			}
+    			
+    			else if((state == true) && (contain == true) && (sparesNeeded == false) && (redundant == true)) 
+    			{
+        			log.info("DAS " + workerCandidate);
+
+        			try {
+						alternateServerConfiguration(workerCandidate, false, proxyCoturn, proxyCliSecret);
+						alternateServerListFromCli.remove(workerCandidate);
+		
+					} catch (IOException e) {
+						log.error("Command not running for proxy:{} mainWorkerCandidate:{} During DAS", proxyCoturn, workerCandidate, e);
+					}	    				
+   				}
+    			
+    			else
+    			{
+    				continue;
+    			}
+    			
+    		}   
+   		}
 
 	@Retryable(value = { IOException.class }, maxAttempts = 2)
 	public void alternateServerConfiguration(String worker, boolean operation, String proxyCoturn, String proxyCliSecret) throws IOException {
