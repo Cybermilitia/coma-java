@@ -11,7 +11,7 @@
 	<packaging>jar</packaging>
 	<groupId>com.ttech.tvoip</groupId>
 	<artifactId>coma</artifactId>
-	<version>0.0.8</version>
+	<version>0.0.9</version>
 	<name>coturn-healthchecker</name>
 	<description>Coturn healthchecker</description>
 	<properties>

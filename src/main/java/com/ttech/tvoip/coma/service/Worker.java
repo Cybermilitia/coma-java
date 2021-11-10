@@ -24,7 +24,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
 import com.ttech.tvoip.coma.alarm.AlarmGroup;
+
 import lombok.extern.slf4j.Slf4j;
 
 import de.javawi.jstun.attribute.ChangeRequest;
@@ -39,8 +41,9 @@ import de.javawi.jstun.header.MessageHeaderParsingException;
 import de.javawi.jstun.util.UtilityException;
 
 @Slf4j
+@Service
+@Scope("prototype")
 public class Worker {
-
 	
 	@Autowired
 	AlarmGroup alarmGroup;
@@ -118,29 +121,31 @@ public class Worker {
 			/*Sync OK. State must be set true*/
 			state = true;
 			
+			log.info("workerCandidate: " + workerCandidate); 
+			log.info("alarmGroup: {}", alarmGroup.getAlarmList()); 
 			/*Alarm clear*/				
-			//alarmGroup.getAlarm(workerCandidate).clear();
+			alarmGroup.getAlarm(workerCandidate).clear();
 			s.close();
 		
 		} catch (SocketTimeoutException ex) {
 			
 			log.error("In Worker constructor: TIMEOUT " + workerCandidate);
-			//alarmGroup.getAlarm(workerCandidate).raise("TIMEOUT");
+			alarmGroup.getAlarm(workerCandidate).raise("TIMEOUT");
 			/*Sync NOK. State must be set false*/
 			return state = false;
         
 		} catch( ConnectException  e ) {
 			
 			log.error("In Worker constructor: Connection Refused " + workerCandidate);
-			//alarmGroup.getAlarm(workerCandidate).raise("Connection Refused");
+			alarmGroup.getAlarm(workerCandidate).raise("Connection Refused");
 			//log.error("Connection refused: " + workerCandidate,e);
 			/*Sync NOK. State must be set false*/
 			return state = false;	
 			
 		} catch( Exception e ) {
 			
-			log.error("In Worker constructor: UNKNOWN " + workerCandidate);
-			//alarmGroup.getAlarm(workerCandidate).raise("UNKNOWN");
+			log.error("In Worker constructor: UNKNOWN " + workerCandidate,e);
+			alarmGroup.getAlarm(workerCandidate).raise("UNKNOWN");
 			//log.error("Unknown workers socket exception: " + workerCandidate,e);
 			/*Sync NOK. State must be set false*/
 			return state = false;			

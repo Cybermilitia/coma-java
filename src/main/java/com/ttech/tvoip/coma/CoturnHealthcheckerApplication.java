@@ -15,7 +15,7 @@ public class CoturnHealthcheckerApplication {
 		SpringApplication.run(CoturnHealthcheckerApplication.class, args);
 		
 	}
-	
+	/*Per proxy group / corpus run syncronization method by using that Pool size. So this is a limitation for number of proxy group.*/
 	@Bean
     public TaskScheduler taskScheduler() {
         final ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();

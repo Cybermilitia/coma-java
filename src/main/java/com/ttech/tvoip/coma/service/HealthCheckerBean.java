@@ -22,6 +22,7 @@ import javax.annotation.PostConstruct;
 import org.apache.commons.net.telnet.TelnetClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -39,6 +40,9 @@ public class HealthCheckerBean {
 	@Autowired
 	AlarmGroup alarmGroup;
 	
+	@Autowired
+	private ApplicationContext appContext;
+	
 	private String proxyCoturn;
 	
 	private String proxyCliSecret;
@@ -51,7 +55,7 @@ public class HealthCheckerBean {
 
 	private String[] workersList;
 	
-	Boolean sparesNeeded = false;
+	Boolean sparesNeeded = true;
 
 	Vector<String> alternateServerListFromCli = new Vector<String>();
 
@@ -60,8 +64,11 @@ public class HealthCheckerBean {
 	@Value("${telnet.port:8000}")
 	private int telnetPort;
 
+	@Value("${check.sync.time:600000}")
+	private String syncTimeString;
+	
 	public HealthCheckerBean(String corpusEntity) {
-		
+				
 		String[] corpusEntityDatas = corpusEntity.split("\\|");
 		
 		this.proxyCoturn = corpusEntityDatas[0];
@@ -86,15 +93,17 @@ public class HealthCheckerBean {
     	/*Get Alternative Server List from Cli*/        
     	try {
 			alternateServerListFromCli = getAlternateServersFromCli(proxyCoturn, proxyCliSecret);
+			alternateServerListFromCli = removeAlternateServersFromCli(proxyCoturn, proxyCliSecret);
 		} catch (IOException e1) {
 			log.error("List command not running for proxy:{}", proxyCoturn, e1);
 			return;
 		}
     	
-		log.info("Alarm map:{}", alarmGroup.getAlarmList());
+		//log.info("Alarm map:{}", alarmGroup.getAlarmList());
 	}	
 	
-	@Scheduled(initialDelay=60000, fixedRateString="600000")  
+	@Scheduled(initialDelay=6500, fixedRateString="${check.sync.time:10}000")
+//	@Scheduled(initialDelay=6500, fixedRateString="60000")
 	public void Syncronization()  {
     	/*Get Alternative Server List from Cli*/        
     	try {
@@ -112,6 +121,7 @@ public class HealthCheckerBean {
 		
         Vector<Worker> alternateServerListFromConfig = new Vector<Worker>();
        
+		log.info("***************************************************************************************************");
 		log.info("Cycle Starts");
 		
 		for(String s:alternateServerListFromCli)
@@ -124,8 +134,7 @@ public class HealthCheckerBean {
     			String[] configIpPort = mainWorkerCandidate.split(":");
     			
     			try{
-    				Worker workerObject = new Worker(mainWorkerCandidate, false);
-        			alternateServerListFromConfig.add(workerObject);
+        			alternateServerListFromConfig.add((Worker) appContext.getBean("worker", mainWorkerCandidate, false));
         		}
     			catch(Exception e ){
 					log.error("Main worker problem: " + mainWorkerCandidate);   					
@@ -140,8 +149,7 @@ public class HealthCheckerBean {
     			String[] configIpPort = spareWorkerCandidate.split(":");
     			
     			try{
-    				Worker workerObject = new Worker(spareWorkerCandidate, true);
-        			alternateServerListFromConfig.add(workerObject);
+        			alternateServerListFromConfig.add((Worker) appContext.getBean("worker", spareWorkerCandidate, true));
         		}
     			catch(Exception e ){
 					log.error("Spare worker problem: " + spareWorkerCandidate);   					
@@ -357,6 +365,47 @@ public class HealthCheckerBean {
 		finally {
     		telnet.disconnect();
 		}
+        
+		return alternateServerListFromCli;
+	}
+	
+	@Retryable(value = { IOException.class }, maxAttempts = 2)
+	public Vector<String> removeAlternateServersFromCli(String proxyCoturn, String cliPassword) throws IOException {
+		    	
+        log.info("Remove everything:{} ", proxyCoturn);
+		TelnetClient telnet = new TelnetClient();	
+		telnet.setConnectTimeout(1000);
+        telnet.connect(proxyCoturn,telnetPort);            
+        String pwd = cliPassword;
+        telnet.getOutputStream().write(pwd.getBytes());
+        telnet.getOutputStream().flush();
+        
+		try
+        {
+	        log.info("********************** TRY****************** ");
+            
+            for(String worker:alternateServerListFromCli)
+            {
+				String command1 = "das " + worker + "\r\n";
+				log.debug("DAS COMMAND: " + command1);
+				
+		        telnet.getOutputStream().write(command1.getBytes());
+		        telnet.getOutputStream().flush();
+		        Thread.sleep(1000);
+            }
+            	
+			alarmGroup.getAlarm(proxyCoturn).clear();
+
+        } catch( Exception e ) {
+			alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
+        	log.error("Telnet exception while removing alternatives from the proxy server.", e);
+       		telnet.disconnect();			
+        }
+		finally {
+    		telnet.disconnect();
+    		alternateServerListFromCli.clear();
+		}
+		
         
 		return alternateServerListFromCli;
 	}
