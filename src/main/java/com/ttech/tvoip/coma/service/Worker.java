@@ -122,7 +122,7 @@ public class Worker {
 			state = true;
 			
 			log.info("workerCandidate: " + workerCandidate); 
-			log.info("alarmGroup: {}", alarmGroup.getAlarmList()); 
+			//log.info("alarmGroup: {}", alarmGroup.getAlarmList()); 
 			/*Alarm clear*/				
 			alarmGroup.getAlarm(workerCandidate).clear();
 			s.close();

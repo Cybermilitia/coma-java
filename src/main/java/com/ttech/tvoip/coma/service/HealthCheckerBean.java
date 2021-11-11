@@ -58,6 +58,7 @@ public class HealthCheckerBean {
 	Boolean sparesNeeded = true;
 
 	Vector<String> alternateServerListFromCli = new Vector<String>();
+	Vector<String> alternateServerListFromConfig = new Vector<String>();
 
 	ArrayList<String> serverlist = new ArrayList<String>();
 	
@@ -93,12 +94,37 @@ public class HealthCheckerBean {
     	/*Get Alternative Server List from Cli*/        
     	try {
 			alternateServerListFromCli = getAlternateServersFromCli(proxyCoturn, proxyCliSecret);
-			alternateServerListFromCli = removeAlternateServersFromCli(proxyCoturn, proxyCliSecret);
 		} catch (IOException e1) {
 			log.error("List command not running for proxy:{}", proxyCoturn, e1);
 			return;
 		}
     	
+    	/*Get Alternative Server List from Config*/        		
+		for(String mainWorkerCandidate : mainWorkersList) {			
+			alternateServerListFromConfig.add(mainWorkerCandidate); 
+		}
+		
+		for(String spareWorkerCandidate : spareWorkersList) {
+			alternateServerListFromConfig.add(spareWorkerCandidate); 
+		}
+		/*Collate alternateServerListFromCli with alternateServerListFromConfig for any stowaway*/
+		for(String worker:alternateServerListFromCli)
+		{
+			if(!alternateServerListFromConfig.contains(worker))
+			{
+				log.error("There is a stowaway in the proxy coturn: {}", worker);
+			}
+		}
+		
+		/*Check the initial spareNeeded condition*/
+		
+		for(String mainWorkerCandidate : mainWorkersList) {			
+			if(alternateServerListFromCli.contains(mainWorkerCandidate))
+			{
+				sparesNeeded = false;
+				log.info("SPARES DEACTIVATED! " + mainWorkerCandidate);
+			}
+		}
 		//log.info("Alarm map:{}", alarmGroup.getAlarmList());
 	}	
 	
@@ -119,7 +145,7 @@ public class HealthCheckerBean {
 	@Scheduled(initialDelay=1000, fixedRateString="10000")  
 	public void coturnAutoCheck()  {
 		
-        Vector<Worker> alternateServerListFromConfig = new Vector<Worker>();
+        Vector<Worker> alternateWorkerListFromConfig = new Vector<Worker>();
        
 		log.info("***************************************************************************************************");
 		log.info("Cycle Starts");
@@ -134,7 +160,7 @@ public class HealthCheckerBean {
     			String[] configIpPort = mainWorkerCandidate.split(":");
     			
     			try{
-        			alternateServerListFromConfig.add((Worker) appContext.getBean("worker", mainWorkerCandidate, false));
+    				alternateWorkerListFromConfig.add((Worker) appContext.getBean("worker", mainWorkerCandidate, false));
         		}
     			catch(Exception e ){
 					log.error("Main worker problem: " + mainWorkerCandidate);   					
@@ -149,7 +175,7 @@ public class HealthCheckerBean {
     			String[] configIpPort = spareWorkerCandidate.split(":");
     			
     			try{
-        			alternateServerListFromConfig.add((Worker) appContext.getBean("worker", spareWorkerCandidate, true));
+    				alternateWorkerListFromConfig.add((Worker) appContext.getBean("worker", spareWorkerCandidate, true));
         		}
     			catch(Exception e ){
 					log.error("Spare worker problem: " + spareWorkerCandidate);   					
@@ -180,7 +206,7 @@ public class HealthCheckerBean {
 			1					1				 1					1					0
     		 */
     		
-    		for(Worker workerObject :alternateServerListFromConfig)
+    		for(Worker workerObject :alternateWorkerListFromConfig)
     		{
 				
     			String workerCandidate = workerObject.getIp() + ":" + workerObject.getPort();
@@ -208,7 +234,7 @@ public class HealthCheckerBean {
 						if((alternateServerListFromCli.size() == 0) && (redundant == false))
 						{
 							sparesNeeded = true;
-							log.debug("SPARES ACTIVATED! " + sparesNeeded);
+							log.info("SPARES ACTIVATED! " + sparesNeeded);
 						}
 		
 					} catch (IOException e) {
@@ -232,7 +258,7 @@ public class HealthCheckerBean {
 						if(redundant == false)
 						{
 							sparesNeeded = false;
-							log.debug("SPARES DEACTIVATED! " + sparesNeeded);
+							log.info("SPARES DEACTIVATED! " + sparesNeeded);
 						}
     				}
     			}
@@ -365,47 +391,6 @@ public class HealthCheckerBean {
 		finally {
     		telnet.disconnect();
 		}
-        
-		return alternateServerListFromCli;
-	}
-	
-	@Retryable(value = { IOException.class }, maxAttempts = 2)
-	public Vector<String> removeAlternateServersFromCli(String proxyCoturn, String cliPassword) throws IOException {
-		    	
-        log.info("Remove everything:{} ", proxyCoturn);
-		TelnetClient telnet = new TelnetClient();	
-		telnet.setConnectTimeout(1000);
-        telnet.connect(proxyCoturn,telnetPort);            
-        String pwd = cliPassword;
-        telnet.getOutputStream().write(pwd.getBytes());
-        telnet.getOutputStream().flush();
-        
-		try
-        {
-	        log.info("********************** TRY****************** ");
-            
-            for(String worker:alternateServerListFromCli)
-            {
-				String command1 = "das " + worker + "\r\n";
-				log.debug("DAS COMMAND: " + command1);
-				
-		        telnet.getOutputStream().write(command1.getBytes());
-		        telnet.getOutputStream().flush();
-		        Thread.sleep(1000);
-            }
-            	
-			alarmGroup.getAlarm(proxyCoturn).clear();
-
-        } catch( Exception e ) {
-			alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
-        	log.error("Telnet exception while removing alternatives from the proxy server.", e);
-       		telnet.disconnect();			
-        }
-		finally {
-    		telnet.disconnect();
-    		alternateServerListFromCli.clear();
-		}
-		
         
 		return alternateServerListFromCli;
 	}
