@@ -1,4 +1,4 @@
-package com.ttech.tvoip.coma;
+package com.bip.coma;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,7 +15,7 @@ public class CoturnHealthcheckerApplication {
 		SpringApplication.run(CoturnHealthcheckerApplication.class, args);
 		
 	}
-	/*Per proxy group / corpus run syncronization method by using that Pool size. So this is a limitation for number of proxy group.*/
+	/*Per proxy group / proxy run syncronization method by using that Pool size. So this is a limitation for number of proxy group.*/
 	@Bean
     public TaskScheduler taskScheduler() {
         final ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
