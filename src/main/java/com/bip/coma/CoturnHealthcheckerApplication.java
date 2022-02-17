@@ -20,6 +20,7 @@ public class CoturnHealthcheckerApplication {
     public TaskScheduler taskScheduler() {
         final ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(20);
+        scheduler.setThreadNamePrefix("health-checker-");
         return scheduler;
     }
 
