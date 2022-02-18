@@ -52,11 +52,7 @@ public class WorkerCoturn {
             this.workerAlarm = alarmManager.createWorkerAlarm(this.getId()+"_"+proxyCoturn.getId());
 
             MessageHeader bindingRequest = new MessageHeader(MessageHeader.MessageHeaderType.BindingRequest);
-            // bindingRequest.generateTransactionID();
-
-            /* An empty ChangeRequest attribute not required by the standard.
-               But JSTUN server requires it */
-            bindingRequest.addMessageAttribute(new ChangeRequest());
+            //bindingRequest.generateTransactionID();
             bindingRequestData = bindingRequest.getBytes();
 
             this.workerAlarm.clear();
