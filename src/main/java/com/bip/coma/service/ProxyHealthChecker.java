@@ -114,6 +114,7 @@ public class ProxyHealthChecker {
 
         } catch (Exception e) {
             log.error("Exiting application!! Exception while initializing proxy {}:", proxyCoturn.getId() , e);
+            alarmManager.getSystemAlarm().raise("InitFailed");
             int exitCode = SpringApplication.exit(appContext, () -> 0);
             System.exit(exitCode);
         }
@@ -134,7 +135,7 @@ public class ProxyHealthChecker {
     }
 
 
-    @Scheduled(initialDelay = 2000, fixedDelayString = "${auto_check_period:60}000")
+    @Scheduled(initialDelay = 2000, fixedDelayString = "${system.auto_check_period:60}000")
     public void coturnAutoCheck() {
 
         log.info("CoTurnAutoCheck: started proxy={}, cliAltServers={}", this.proxyCoturn.getId(), tmpCliAlternateServers);

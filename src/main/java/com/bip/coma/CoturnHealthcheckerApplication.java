@@ -1,5 +1,6 @@
 package com.bip.coma;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -11,6 +12,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @EnableScheduling
 public class CoturnHealthcheckerApplication {
 
+    @Value("${system.scheduler.poolsize:10}")
+    int schedulerPoolSize;
+
 	public static void main(String[] args) {
 		SpringApplication.run(CoturnHealthcheckerApplication.class, args);
 		
@@ -19,7 +23,7 @@ public class CoturnHealthcheckerApplication {
 	@Bean
     public TaskScheduler taskScheduler() {
         final ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(20);
+        scheduler.setPoolSize(schedulerPoolSize);
         scheduler.setThreadNamePrefix("health-checker-");
         return scheduler;
     }
