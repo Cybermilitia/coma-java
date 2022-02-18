@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration scanPeriod="60 seconds" debug="false" scan="true">
+
+    <property name="LOG_DIR" value="./logs" />
+    <property name="ARCHIVE_DIR" value="${LOG_DIR}/archive" />
+
+
+    <appender name="STDOUTAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date %level [%X{traceid}] - %C{1}:%L %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="ErrorAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>${LOG_DIR}/coma-error.log</File>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>${ARCHIVE_DIR}/coma-error.%d{yyyy-MM-dd-HH}.log.gz</FileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date %level [%thread] %msg%n</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <appender name="ApplicationAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>${LOG_DIR}/coma.log</File>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>${ARCHIVE_DIR}/coma.%d{yyyy-MM-dd-HH}.log.gz</FileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date [%thread] %level %C{1}:%L %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="TransactionAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>${LOG_DIR}/coma-tx.log</File>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>${ARCHIVE_DIR}/coma-tx.%d{yyyy-MM-dd-HH}.log.gz</FileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="AlarmAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>${LOG_DIR}/coma-alarm.log</File>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>${ARCHIVE_DIR}/coma-alarm.%d{yyyy-MM-dd}.log.gz</FileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date %msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="StatsAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <File>${LOG_DIR}/coma-stats.log</File>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <FileNamePattern>${LOG_DIR}/coma-stats.%d{yyyy-MM-dd}.log.gz</FileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <logger name="com.bip.coma" additivity="false" level="DEBUG">
+        <appender-ref ref="ApplicationAppender" />
+    </logger>
+
+    <logger name="org.springframework" additivity="false" level="INFO">
+        <appender-ref ref="ApplicationAppender" />
+    </logger>
+
+    <logger name="TransactionLogger" additivity="false" level="DEBUG">
+        <appender-ref ref="TransactionAppender" />
+    </logger>
+
+    <logger name="com.bip.coma.alarm.Alarm" additivity="false" level="DEBUG">
+        <appender-ref ref="AlarmAppender" />
+    </logger>
+
+    <logger name="AlarmLogger" additivity="false" level="DEBUG">
+        <appender-ref ref="AlarmAppender" />
+        <appender-ref ref="ApplicationAppender" />
+    </logger>
+
+    <logger name="StatsLogger" additivity="false" level="DEBUG">
+        <appender-ref ref="StatsAppender" />
+    </logger>
+
+    <root level="ERROR">
+        <appender-ref ref="STDOUTAppender" />
+    </root>
+</configuration>

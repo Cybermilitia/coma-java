@@ -49,3 +49,4 @@ Git repository management for enterprise teams powered by Atlassian Stash
 
 /bin
 logs/*
+/out

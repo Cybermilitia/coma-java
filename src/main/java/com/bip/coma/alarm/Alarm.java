@@ -1,4 +1,4 @@
-package com.ttech.tvoip.coma.alarm;
+package com.bip.coma.alarm;
 
 import org.slf4j.Logger;
 
