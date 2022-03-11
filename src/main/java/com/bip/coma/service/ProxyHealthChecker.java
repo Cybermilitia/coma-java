@@ -12,7 +12,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -31,15 +33,12 @@ public class ProxyHealthChecker {
 
     private ProxyCoturn proxyCoturn;
 
-    private Vector<String> tmpCliAlternateServers = new Vector<>();
-    private Vector<WorkerCoturn> primaryWorkers = new Vector<>();
-    private Vector<WorkerCoturn> secondaryWorkers = new Vector<>();
-    private Boolean sparesNeeded = true;
+    private Set<String> tmpAlternateServerSet;
 
-    //@Value("${workerPingPeriodCount:10}")
-    //@Value("#{${jdbc.timeout}/1000})
-    //private int workerPingPeriodCount; // TODO implement this in a smart way
-    //private int readProxyCounter = 0;
+    private ArrayList<WorkerCoturn> primaryWorkers = new ArrayList<>();
+    private ArrayList<WorkerCoturn> secondaryWorkers = new ArrayList<>();
+    private Boolean sparesNeeded = false;
+
 
     public ProxyHealthChecker(ProxyCoturn proxyCoturn) {
         this.proxyCoturn = proxyCoturn;
@@ -51,21 +50,22 @@ public class ProxyHealthChecker {
     public void init() {
 
         try {
-            log.info("Init method invoked for proxy:{} with primary workers:{}, secondary workers {}",
-                    this.proxyCoturn.getId(), this.proxyCoturn.getPrimaryWorkers(), this.proxyCoturn.getSecondaryWorkers());
+            log.info("Init method invoked for proxy:{} integrityCheck:{} with primary workers:{} secondary workers {}",
+                    this.proxyCoturn.getId(), this.proxyCoturn.getCheckIntegrity(),
+                    this.proxyCoturn.getPrimaryWorkers(), this.proxyCoturn.getSecondaryWorkers());
 
             this.cliService.setProxyCoturn(proxyCoturn);
 
             this.proxyAlarm = alarmManager.createProxyAlarm(proxyCoturn.getId());
 
             /*Get Alternative Server List from Cli*/
-            this.getAlernateServers();
-            if (tmpCliAlternateServers.size() == 0) {
+            this.getAlternateServers();
+            if (tmpAlternateServerSet.size() == 0) {
                 log.warn("Init getAlternate servers failed or no alternate server proxy={}", this.proxyCoturn.getId());
             }
 
             log.info("Alternate server list read from cli proxy={}, alterSrvList={}",
-                    this.proxyCoturn.getId(), tmpCliAlternateServers);
+                    this.proxyCoturn.getId(), tmpAlternateServerSet);
 
             /*Primary workers*/
             for (String worker : this.proxyCoturn.getPrimaryWorkers()) {
@@ -83,33 +83,6 @@ public class ProxyHealthChecker {
                 log.info("Secondary Workers are not defined. proxy={}", this.proxyCoturn.getId());
             }
 
-
-            // Check consistency of data and check if spares are  needed
-            Boolean found = false;
-            for (String alternateServer : tmpCliAlternateServers) {
-                for (WorkerCoturn workerCoturn : primaryWorkers) {
-                    if (alternateServer.equals(workerCoturn.getId())) {
-                        sparesNeeded = false;
-                        found = true;
-                        break;
-                    }
-                }
-                if(!found) {
-                    for (WorkerCoturn workerCoturn : secondaryWorkers) {
-                        if (alternateServer.equals(workerCoturn.getId())) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if(!found){
-                        log.warn("There is a mismatch with the alternate server conf !!! proxy={} altSrv={}",
-                                proxyCoturn.getId(), alternateServer);
-                        //TODO what?
-                    }
-                }
-                found = false;
-            }
-
             proxyAlarm.clear();
 
         } catch (Exception e) {
@@ -120,13 +93,20 @@ public class ProxyHealthChecker {
         }
     }
 
-    private void getAlernateServers() throws IOException {
+    private void getAlternateServers() throws IOException {
 
         /*Get Alternative Server List from Cli*/
         try {
-            tmpCliAlternateServers = cliService.getAlternateServers();
-            log.info("Alternate servers read from cli {}", tmpCliAlternateServers);
+            ArrayList<String> tmpList = cliService.getAlternateServers();
+            log.info("Alternate servers read from cli {}", tmpList);
             proxyAlarm.clear();
+
+            if(this.proxyCoturn.getCheckIntegrity()) {
+                tmpAlternateServerSet = checkAlternateServerIntegrity(tmpList);
+            } else {
+                tmpAlternateServerSet = new HashSet<>(tmpList);
+            }
+
         } catch (IOException e) {
             log.error("Alternate servers read from cli failed! {}", this.proxyCoturn.getId(), e);
             proxyAlarm.raise("Telnet"); // TODO: test this
@@ -138,22 +118,14 @@ public class ProxyHealthChecker {
     @Scheduled(initialDelay = 2000, fixedDelayString = "${system.auto_check_period:60}000")
     public void coturnAutoCheck() {
 
-        log.info("CoTurnAutoCheck: started proxy={}, cliAltServers={}", this.proxyCoturn.getId(), tmpCliAlternateServers);
+        log.info("CoTurnAutoCheck: started proxy={}, cliAltServers={}", this.proxyCoturn.getId(), tmpAlternateServerSet);
 
         try {
-            this.getAlernateServers();
+            this.getAlternateServers();
         } catch (Exception e){
             log.error("CoTurnAutoCheck: Exception received proxy={}. Discarding this cycle.", this.proxyCoturn.getId());
             return;
         }
-
-        /*
-        readProxyCounter++;
-        if (readProxyCounter < workerPingPeriodCount) {
-            return;
-        }
-        readProxyCounter = 0;
-        */
 
         log.info("CoTurnAutoCheck: checking primary workers {}", this.proxyCoturn.getPrimaryWorkers());
         checkWorkerList(primaryWorkers);
@@ -164,11 +136,64 @@ public class ProxyHealthChecker {
         }
     }
 
-    private void checkWorkerList(Vector<WorkerCoturn> workerList){
+    private Set<String> checkAlternateServerIntegrity(ArrayList<String> serverList){
+
+        // Eliminate duplicates
+        Set<String> serverSet = new HashSet<>();
+        for(String server:  serverList){
+            if(server == null){
+                continue;
+            }
+            if(serverSet.add(server) == false){
+                try {
+                    /* add function fail means the same item is in the set.
+                       das operation removes only the first found item in coturn.
+                     */
+                    cliService.runCliCommand(CLIService.CLI_DAS_COMMAND, server);
+                }catch(Exception e){
+                    log.error("DAS command failed proxy:{} alternateServer:{}",
+                            this.proxyCoturn.getId(), server, e);
+                }
+            }
+        }
+
+        // Remove undefined ones
+        Boolean found;
+        for(String server: serverSet){
+            found = false;
+            for (WorkerCoturn workerCoturn : primaryWorkers) {
+                if (server.equals(workerCoturn.getId())) {
+                    found = true;
+                    break;
+                }
+            }
+            if(!found) {
+                for (WorkerCoturn workerCoturn : secondaryWorkers) {
+                    if (server.equals(workerCoturn.getId())) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            // Alternate server is not defined in coma. Remove it.
+            if(!found){
+                try{
+                    cliService.runCliCommand(CLIService.CLI_DAS_COMMAND, server);
+                }catch(Exception e){
+                    log.error("DAS failed while integrity check. proxy:{} alternateServer:{}",
+                            this.proxyCoturn.getId(), server, e);
+                }
+            }
+        }
+        return serverSet;
+    }
+
+
+    private void checkWorkerList(ArrayList<WorkerCoturn> workerList){
         for (WorkerCoturn worker : workerList) {
 
             worker.checkState();
-            worker.setPresent(this.tmpCliAlternateServers.contains(worker.getId()));
+            worker.setPresent(this.tmpAlternateServerSet.contains(worker.getId()));
 
             log.debug("workerCandidate:" + worker.getId() + " state:" + worker.checkState() + " contain:" + worker.isPresent()
                     + " sparesNeeded:" + this.sparesNeeded + " redundant:" + worker.isRedundant());
@@ -212,9 +237,9 @@ public class ProxyHealthChecker {
 
             try {
                 cliService.runCliCommand(CLIService.CLI_DAS_COMMAND, worker.getId());
-                tmpCliAlternateServers.remove(worker.getId());
+                tmpAlternateServerSet.remove(worker.getId());
 
-                if ((tmpCliAlternateServers.size() == 0) && worker.isRedundant() == false) {
+                if ((tmpAlternateServerSet.size() == 0) && worker.isRedundant() == false) {
                     sparesNeeded = true;
                     log.info("Spares Needed proxy={}", this.proxyCoturn.getId());
                 }
@@ -232,7 +257,7 @@ public class ProxyHealthChecker {
 
                 try {
                     cliService.runCliCommand(CLIService.CLI_AAS_COMMAND, worker.getId());
-                    tmpCliAlternateServers.add(worker.getId());
+                    tmpAlternateServerSet.add(worker.getId());
 
                 } catch (IOException e) {
                     log.error("AAS command failed for proxy:{} worker:{}",
@@ -252,7 +277,7 @@ public class ProxyHealthChecker {
 
             try {
                 cliService.runCliCommand(CLIService.CLI_DAS_COMMAND, worker.getId());
-                tmpCliAlternateServers.remove(worker.getId());
+                tmpAlternateServerSet.remove(worker.getId());
 
             } catch (IOException e) {
                 log.error("DAS command reduntant failed proxy:{} worker:{}",
