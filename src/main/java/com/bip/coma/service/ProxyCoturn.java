@@ -11,6 +11,7 @@ public class ProxyCoturn {
     private String cliSecret;
     private List<String> primaryWorkers;
     private List<String> secondaryWorkers;
+    private Boolean checkIntegrity = false;
 
 
     public String getId() {
@@ -66,5 +67,13 @@ public class ProxyCoturn {
 
     public void setSecondaryWorkers(List<String> secondaryWorkers) {
         this.secondaryWorkers = secondaryWorkers;
+    }
+
+    public Boolean getCheckIntegrity() {
+        return checkIntegrity;
+    }
+
+    public void setCheckIntegrity(Boolean checkIntegrity) {
+        this.checkIntegrity = checkIntegrity;
     }
 }

@@ -8,7 +8,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
-import java.util.Vector;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -96,6 +96,8 @@ public class CLIService {
             // Read any response
             readUntil(CLI_COMMAND_PROMPT);
 
+            log.info("Command successful for proxy:{} operation:{} worker:{}", proxyCoturn.getId(), command, worker);
+
         } catch( Exception e ) {
             //alarmGroup.getAlarm(proxyCoturn).raise("TELNET");
             log.error("Telnet exception while running cli command proxy:{} operation:{} worker:{}",
@@ -108,9 +110,9 @@ public class CLIService {
 
 
     @Retryable(value = { IOException.class }, maxAttempts = 2)
-    public Vector<String> getAlternateServers() throws IOException {
+    public ArrayList<String> getAlternateServers() throws IOException {
 
-        Vector<String> alternateServerListFromCli = new Vector<>();
+        ArrayList<String> alternateServerListFromCli = new ArrayList<>();
         BufferedReader bReader = null;
 
         log.info("GetAlternateServers running for proxy:{}", proxyCoturn.getId());
