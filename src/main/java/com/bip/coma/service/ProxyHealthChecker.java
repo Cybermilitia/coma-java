@@ -227,7 +227,10 @@ public class ProxyHealthChecker {
     private void takeAction(WorkerCoturn worker) {
 
         if (worker.isActive() == false && worker.isPresent() == false) {
-            // Do nothing
+            if ((tmpAlternateServerSet.size() == 0) && worker.isRedundant() == false) {
+                sparesNeeded = true;
+                log.info("Spares Needed at the beginning - proxy={}", this.proxyCoturn.getId());
+            }
             return;
 
         } else if (worker.isActive() == false && worker.isPresent() == true) {
